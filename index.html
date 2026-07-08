@@ -180,8 +180,49 @@
   }
 
   .taskbar-right{ display:flex; align-items:center; gap:20px; }
-  .sys-icon{ width:18px; height:18px; opacity:0.75; transition:opacity .25s ease; }
+  .sys-icon{ width:18px; height:18px; opacity:0.75; transition:opacity .25s ease; cursor:pointer; }
   .sys-icon:hover{ opacity:1; }
+
+  .volume-wrap{ position:relative; display:flex; align-items:center; }
+
+  .volume-popup{
+    position:absolute;
+    bottom:38px; left:50%;
+    transform:translateX(-50%) translateY(6px);
+    width:44px; height:130px;
+    background:rgba(14,14,16,0.75);
+    backdrop-filter:blur(16px) saturate(140%);
+    -webkit-backdrop-filter:blur(16px) saturate(140%);
+    border:1px solid rgba(255,255,255,0.1);
+    border-radius:12px;
+    box-shadow:0 8px 26px rgba(0,0,0,0.5), 0 0 18px rgba(200,30,46,0.12);
+    display:flex; flex-direction:column; align-items:center;
+    padding:12px 0 10px;
+    opacity:0; pointer-events:none;
+    transition:opacity .2s ease, transform .2s ease;
+  }
+  .volume-popup.open{
+    opacity:1; pointer-events:auto;
+    transform:translateX(-50%) translateY(0);
+  }
+
+  .volume-slider{
+    -webkit-appearance:slider-vertical;
+    writing-mode:vertical-lr;
+    direction:rtl;
+    width:4px; height:84px;
+    accent-color:var(--red);
+    cursor:pointer;
+    background:transparent;
+  }
+
+  .volume-value{
+    margin-top:8px;
+    font-family:'Rajdhani',sans-serif;
+    font-size:11px; font-weight:600;
+    color:rgba(238,240,242,0.6);
+    letter-spacing:1px;
+  }
 
   .clock-block{ display:flex; flex-direction:column; align-items:flex-end; line-height:1.25; padding-left:14px; border-left:1px solid rgba(255,255,255,0.1); }
   .clock{ font-family:'Rajdhani',sans-serif; font-weight:600; font-size:14px; letter-spacing:1px; color:rgba(238,240,242,0.92); }
@@ -241,16 +282,25 @@
         <path d="M9 15.5C10.8 14 13.2 14 15 15.5" stroke-linecap="round"/>
         <circle cx="12" cy="19" r="1.2" fill="#eef0f2" stroke="none"/>
       </svg>
-      <svg class="sys-icon" viewBox="0 0 24 24" fill="none" stroke="#eef0f2" stroke-width="1.8">
-        <path d="M3 10v4h4l5 4V6L7 10H3z" stroke-linejoin="round"/>
-        <path d="M16 9c1.2 1 1.2 5 0 6" stroke-linecap="round"/>
-      </svg>
+      <div class="volume-wrap">
+        <svg class="sys-icon" id="volumeIcon" viewBox="0 0 24 24" fill="none" stroke="#eef0f2" stroke-width="1.8">
+          <path d="M3 10v4h4l5 4V6L7 10H3z" stroke-linejoin="round"/>
+          <path id="volWave1" d="M16 9c1.2 1 1.2 5 0 6" stroke-linecap="round"/>
+          <path id="volWave2" d="M18.5 6.5c2.6 2.3 2.6 8.7 0 11" stroke-linecap="round" opacity="0.7"/>
+        </svg>
+        <div class="volume-popup" id="volumePopup">
+          <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="50">
+          <div class="volume-value" id="volumeValue">50</div>
+        </div>
+      </div>
       <div class="clock-block">
         <div class="clock" id="clock">23:47</div>
         <div class="date" id="date">Tue, Jul 7</div>
       </div>
     </div>
   </div>
+
+  <audio id="bgMusic" src="sounds/music.mp3" loop preload="auto"></audio>
 
 </div>
 
@@ -284,9 +334,45 @@
 
   const screen=document.getElementById('screen');
   const lockView=document.getElementById('lockView');
+  const bgMusic=document.getElementById('bgMusic');
+  bgMusic.volume=0.5;
+
   lockView.addEventListener('click',()=>{
     screen.classList.add('unlocked');
+    bgMusic.play().catch(()=>{ /* autoplay blocked, will start on next user interaction */ });
   });
+
+  // Volume popup + slider
+  const volumeIcon=document.getElementById('volumeIcon');
+  const volumePopup=document.getElementById('volumePopup');
+  const volumeSlider=document.getElementById('volumeSlider');
+  const volumeValue=document.getElementById('volumeValue');
+  const volWave1=document.getElementById('volWave1');
+  const volWave2=document.getElementById('volWave2');
+
+  function updateVolumeIcon(v){
+    volWave1.style.opacity = v > 0 ? '1' : '0.15';
+    volWave2.style.opacity = v > 40 ? '0.7' : '0';
+  }
+
+  volumeIcon.addEventListener('click',(e)=>{
+    e.stopPropagation();
+    volumePopup.classList.toggle('open');
+  });
+
+  document.addEventListener('click',(e)=>{
+    if(!volumePopup.contains(e.target) && e.target !== volumeIcon){
+      volumePopup.classList.remove('open');
+    }
+  });
+
+  volumeSlider.addEventListener('input',()=>{
+    const v = parseInt(volumeSlider.value,10);
+    bgMusic.volume = v/100;
+    volumeValue.textContent = v;
+    updateVolumeIcon(v);
+  });
+  updateVolumeIcon(50);
 
   document.querySelectorAll('.user').forEach(u=>{
     u.addEventListener('click',()=>{
